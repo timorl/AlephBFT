@@ -9,6 +9,8 @@ use std::{fmt::Debug, hash::Hash as StdHash};
 use crate::nodes::{NodeCount, NodeIndex, NodeMap};
 
 pub use member::{Config, Member};
+#[cfg(feature = "test_data")]
+pub use network::test_network_data;
 pub use network::{Network, NetworkData};
 
 mod bft;

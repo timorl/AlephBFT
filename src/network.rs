@@ -23,6 +23,8 @@ pub trait Network<H: Hasher, D: Data, S: Encode + Decode>: Send {
 pub(crate) enum NetworkDataInner<H: Hasher, D: Data, S: Encode + Decode> {
     Units(UnitMessage<H, D, S>),
     Alert(AlertMessage<H, D, S>),
+    #[cfg(feature = "test_data")]
+    Test(),
 }
 
 /// NetworkData is the opaque format for all data that a committee member needs
@@ -31,6 +33,11 @@ pub(crate) enum NetworkDataInner<H: Hasher, D: Data, S: Encode + Decode> {
 pub struct NetworkData<H: Hasher, D: Data, S: Encode + Decode>(
     pub(crate) NetworkDataInner<H, D, S>,
 );
+
+#[cfg(feature = "test_data")]
+pub fn test_network_data<H: Hasher, D: Data, S: Encode + Decode>() -> NetworkData<H, D, S> {
+    NetworkData(NetworkDataInner::Test())
+}
 
 impl<H: Hasher, D: Data, S: Encode + Decode> Encode for NetworkData<H, D, S> {
     fn size_hint(&self) -> usize {
@@ -116,6 +123,8 @@ impl<H: Hasher, D: Data, S: Encode + Decode, N: Network<H, D, S>> NetworkHub<H, 
                     error!(target: "network-hub", "Alert message push error: {:?}", error)
                 }
             }
+            #[cfg(feature = "test_data")]
+            Test() => (),
         }
     }
 
