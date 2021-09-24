@@ -10,6 +10,8 @@
 
 ### Overview
 
+DONTBESILLYLANMDMERGETHIS
+
 Aleph is an asynchronous and Byzantine fault tolerant consensus protocol aimed
 at ordering arbitrary messages (transactions). It has been designed to operate
 continuously under conditions where there is no bound on message-delivery delay
