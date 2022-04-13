@@ -15,7 +15,7 @@
 
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-        <meta name="description" content="Documentation of the rust implementation of Aleph protocol">
+        <meta name="description" content="Documentation of the Rust implementation of Aleph protocol">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
@@ -409,8 +409,13 @@ That being said, there are <strong>practical</strong> issues when it comes to de
 <span class="boring">}
 </span></code></pre></pre>
 <p>A typical implementation of KeyBox would be a collection of <code>N</code> public keys, an index <code>i</code> and a single private key corresponding to the public key number <code>i</code>. The meaning of <code>sign</code> is then to produce a signature using the given private key, and <code>verify(msg, s, j)</code> is to verify whether the signature <code>s</code> under the message <code>msg</code> is correct with respect to the public key of the <code>j</code>th node.</p>
+<h4 id="314-read--write--recovering-mid-session-crashes"><a class="header" href="#314-read--write--recovering-mid-session-crashes">3.1.4 Read &amp; Write – recovering mid session crashes</a></h4>
+<p>The <code>std::io::Write</code> and <code>std::io::Read</code> traits are used for creating backups of Units created in a session. This is a part of crash recovery. Units created are needed for member to recover after crash during a session for Aleph to be BFT. This means that user needs to provide two traits <code>std::io::Write</code> and <code>std::io::Read</code> that are used for storing and reading Unit that are created by member. At first (without any crash) <code>std::io::Read</code> should return nothing. After crash it should contain all data that was stored before in this session.</p>
+<p>These traits are optional. If you do not want to recover crashes mid session or your session handling ensures AlephBFT will not run in the same session twice you can pass NOOP implementation here.</p>
+<p><a href="https://doc.rust-lang.org/std/io/trait.Write.html#"><code>std::io::Write</code></a> should provide a way of writing data generated during session which should be backed up. <strong><code>flush</code> method should block until the written data is backed up.</strong></p>
+<p><a href="https://doc.rust-lang.org/std/io/trait.Read.html#"><code>std::io::Read</code></a> should provide a way of retreiving backups of all data generated during session by this member in case of crash. <strong><code>std::io::Read</code> should have a copy of all data so that writing to <code>std::io::Write</code> has no effect on reading.</strong></p>
 <h3 id="32-examples"><a class="header" href="#32-examples">3.2 Examples</a></h3>
-<p>While the implementations of <code>KeyBox</code> and <code>Network</code> are pretty much universal, the implementation of <code>DataProvider</code> and <code>FinalizationHandler</code> depends on the specific application. We consider two examples here.</p>
+<p>While the implementations of <code>KeyBox</code>, <code>std::io::Write</code>, <code>std::io::Read</code> and <code>Network</code> are pretty much universal, the implementation of <code>DataProvider</code> and <code>FinalizationHandler</code> depends on the specific application. We consider two examples here.</p>
 <h4 id="321-blockchain-finality-gadget"><a class="header" href="#321-blockchain-finality-gadget">3.2.1 Blockchain Finality Gadget.</a></h4>
 <p>Consider a blockchain that does not have an intrinsic finality mechanism, so for instance it might be a PoW chain with probabilistic finality or a chain based on PoS that uses some probabilistic or round-robin block proposal mechanism. Each of the <code>N</code> nodes in the network has its own view of the chain and at certain moments in time there might be conflicts on what the given nodes consider as the &quot;tip&quot; of the blockchain (because of possible forks or network delays). We would like to design a finality mechanism based on AlephBFT that will allow the nodes to have agreement on what the &quot;tip&quot; is. Towards this end we just need to implement a suitable <code>DataProvider</code> object and filtering of network messages for AlephBFT.</p>
 <p>For concreteness, suppose each node holds the genesis block <code>B[0]</code> and its hash <code>hash(B[0])</code> and treats it as the highest finalized block so far.</p>
@@ -560,7 +565,7 @@ In any case the terminal triggers a request to <code>Member</code> to download t
 <li>Upon receiving <code>MULTISIG(h, msig)</code> under <code>h</code>, each node passes it also to all other nodes.</li>
 </ol>
 <p>The moment when a node receives <code>MULTISIG(h, msig)</code> is considered as the completion of the multicast for this node (and even though the node still keeps resubmitting messages) this instance of RMC is considered as successful. If a RMC succeeds for some honest node then it is guaranteed to succeed for all honest nodes (but maybe with some delay). We refer to the file <code>/src/rmc.rs</code> for a thorough documentation of this component.</p>
-<h3 id="61-reliable-broadcast-based-on-rmc"><a class="header" href="#61-reliable-broadcast-based-on-rmc">6.1 Reliable Broadcast based on RMC</a></h3>
+<h3 id="62-reliable-broadcast-based-on-rmc"><a class="header" href="#62-reliable-broadcast-based-on-rmc">6.2 Reliable Broadcast based on RMC</a></h3>
 <p>Having the idea of RMC, one can modify it quite easily to achieve reliable broadcast. A naive way to do so would be to let the sender node hash the message <code>m</code> it intends to reliably broadcast into <code>h=hash(m)</code> and use RMC on the hash <code>h</code>. This almost works, except for the data availability problem -- a malicious sender might simply send a random meaningless hash <code>h</code> and then the honest nodes would never be able to recover the underlying data.</p>
 <p>To circumvent the data availability problem we instruct the sender to send data <code>m</code> to all the nodes and only then to initiate RMC on <code>h = hash(m)</code>, if we make sure that no honest node proceeds with RMC before it receives the data <code>m</code>, then a successful RMC has the guarantee that most of the honest nodes hold the data <code>m</code>. This is the basic idea behind the protocol implemented for fork alerts in AlephBFT, we refer to <code>/src/alerts.rs</code> for details.</p>
 
